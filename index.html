@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>AkyVoy - Repartidor</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{--p:#10B981;--pd:#059669;--pl:#34D399;--a:#F59E0B;--bg:#0C0A15;--bg2:#13101F;--cd:#1A1625;--ch:#231E33;--tx:#F8F7FF;--tx2:#A5A0B8;--tx3:#6B6580;--ok:#10B981;--no:#EF4444;--wn:#F59E0B;--bd:#2A2540}
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Outfit',sans-serif}
+body{background:var(--bg);color:var(--tx);min-height:100vh}
+.bP{background:linear-gradient(135deg,var(--p),var(--pd));color:#fff;padding:10px 16px;border-radius:10px;font-weight:600;cursor:pointer}
+.bW{background:linear-gradient(135deg,var(--wn),#D97706);color:#000;padding:10px 16px;border-radius:10px;font-weight:600;cursor:pointer}
+.gc{background:var(--cd);border:1px solid var(--bd);border-radius:14px;padding:12px;margin-bottom:10px}
+.badge{padding:2px 8px;border-radius:12px;font-size:10px;font-weight:600}
+.bOk{background:rgba(16,185,129,.13);color:var(--ok)}
+.bNo{background:rgba(239,68,68,.13);color:var(--no)}
+.bWn{background:rgba(245,158,11,.13);color:var(--wn)}
+.bPr{background:rgba(124,58,237,.13);color:#A78BFA}
+.bn{position:fixed;bottom:0;left:0;right:0;background:var(--bg2);border-top:1px solid var(--bd);display:flex;justify-content:space-around;padding:10px}
+.ni{display:flex;flex-direction:column;align-items:center;color:var(--tx3);font-size:10px;cursor:pointer}
+.ni.on{color:var(--pl)}
+.page{padding:20px;padding-bottom:80px}
+#toasts{position:fixed;top:20px;right:20px;z-index:1000}
+.toast{background:var(--cd);border:1px solid var(--bd);padding:12px;border-radius:10px;margin-bottom:8px;box-shadow:0 4px 12px rgba(0,0,0,0.5)}
+.stat-card{background:var(--ch);border-radius:12px;padding:16px;text-align:center;flex:1}
+.stat-num{font-size:24px;font-weight:800}
+.stat-label{font-size:10px;color:var(--tx3);margin-top:4px}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="pgL" class="flex items-center justify-center min-h-screen p-10">
+    <div class="gc w-full max-w-md text-center">
+        <div class="text-5xl mb-4">🛵</div>
+        <h2 class="text-2xl font-bold mb-2">AkyVoy Repartidor</h2>
+        <p class="text-sm text-gray-400 mb-6">Acceso exclusivo para repartidores autorizados</p>
+        <input id="lC" class="w-full p-3 bg-gray-900 border border-gray-700 rounded mb-3" placeholder="Código de Repartidor (ej: REP-01)">
+        <button onclick="doLogin()" class="bP w-full">Entrar</button>
+    </div>
+</div>
+
+<!-- APP -->
+<div id="pgA" style="display:none">
+    <!-- HEADER -->
+    <header class="p-4 border-bottom border-gray-800 flex justify-between items-center">
+        <div class="flex items-center gap-3">
+            <img id="r-foto" src="https://via.placeholder.com/40" class="w-10 h-10 rounded-full object-cover border-2 border-green-500">
+            <div>
+                <div id="r-nombre" class="font-bold text-sm">Cargando...</div>
+                <div id="r-status" class="text-[10px] text-green-400"><i class="fas fa-circle text-[8px]"></i> Disponible</div>
+            </div>
+        </div>
+        <div class="flex items-center gap-3">
+            <button id="btnDisponible" onclick="toggleDisponible()" class="bP text-xs px-3 py-1">
+                <i class="fas fa-toggle-on"></i> Activo
+            </button>
+            <button onclick="doLogout()" class="text-xs text-red-400"><i class="fas fa-sign-out-alt"></i></button>
+        </div>
+    </header>
+
+    <!-- ESTADÍSTICAS -->
+    <div class="flex gap-3 px-4 py-3">
+        <div class="stat-card">
+            <div id="statHoy" class="stat-num text-green-400">0</div>
+            <div class="stat-label">Hoy</div>
+        </div>
+        <div class="stat-card">
+            <div id="statActivos" class="stat-num text-yellow-400">0</div>
+            <div class="stat-label">Activos</div>
+        </div>
+        <div class="stat-card">
+            <div id="statTotal" class="stat-num text-purple-400">0</div>
+            <div class="stat-label">Total</div>
+        </div>
+    </div>
+
+    <!-- TAB: PEDIDOS ACTIVOS -->
+    <div id="t-activos" class="page">
+        <h2 class="text-lg font-bold mb-4"><i class="fas fa-fire text-yellow-400"></i> Pedidos Activos</h2>
+        <div id="active-list"></div>
+        <div id="no-activos" class="text-center text-gray-500 mt-10" style="display:none">
+            <i class="fas fa-check-circle text-3xl mb-3 text-gray-600"></i>
+            <p>No tienes pedidos activos</p>
+            <p class="text-xs text-gray-600 mt-1">Los nuevos pedidos asignados aparecerán aquí</p>
+        </div>
+    </div>
+
+    <!-- TAB: HISTORIAL -->
+    <div id="t-historial" class="page" style="display:none">
+        <h2 class="text-lg font-bold mb-4"><i class="fas fa-history text-gray-400"></i> Historial de Entregas</h2>
+        <div id="history-list"></div>
+    </div>
+
+    <!-- TAB: PERFIL -->
+    <div id="t-perfil" class="page" style="display:none">
+        <h2 class="text-lg font-bold mb-4"><i class="fas fa-user"></i> Mi Perfil</h2>
+        <div class="gc">
+            <div class="flex items-center gap-4 mb-4">
+                <img id="pFoto" src="https://via.placeholder.com/60" class="w-16 h-16 rounded-full object-cover border-2 border-green-500">
+                <div>
+                    <div id="pNombre" class="font-bold">---</div>
+                    <div id="pCodigo" class="text-xs text-gray-400">---</div>
+                    <span class="badge bOk mt-1">Repartidor</span>
+                </div>
+            </div>
+            <div class="space-y-3">
+                <div>
+                    <label class="text-xs text-gray-400">Foto de Perfil (URL)</label>
+                    <input id="eFoto" class="w-full p-2 bg-gray-900 border border-gray-700 rounded text-xs mt-1" placeholder="https://...">
+                </div>
+                <div>
+                    <label class="text-xs text-gray-400">Teléfono de Contacto</label>
+                    <input id="eTel" class="w-full p-2 bg-gray-900 border border-gray-700 rounded text-xs mt-1" placeholder="Tu teléfono">
+                </div>
+                <div>
+                    <label class="text-xs text-gray-400">Notas / Vehículo</label>
+                    <textarea id="eDesc" class="w-full p-2 bg-gray-900 border border-gray-700 rounded text-xs h-16 mt-1" placeholder="Ej: Moto roja, placa ABC-123"></textarea>
+                </div>
+                <button onclick="guardarPerfil()" class="bP w-full text-xs">Guardar Cambios</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- NAV -->
+    <nav class="bn">
+        <div class="ni on" onclick="goT('activos')"><i class="fas fa-fire mb-1"></i>Activos</div>
+        <div class="ni" onclick="goT('historial')"><i class="fas fa-history mb-1"></i>Historial</div>
+        <div class="ni" onclick="goT('perfil')"><i class="fas fa-user mb-1"></i>Perfil</div>
+    </nav>
+</div>
+
+<div id="toasts"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="conexion.js"></script>
+<script>
+let S = { user: null, profile: null, activos: [], historial: [], disponible: true };
+
+/* ── Toast ── */
+function toast(t, m) {
+    const el = document.createElement('div');
+    el.className = 'toast';
+    el.innerHTML = `<strong>${t}</strong><p>${m}</p>`;
+    document.getElementById('toasts').appendChild(el);
+    setTimeout(() => el.remove(), 3500);
+}
+
+/* ── Login ── */
+async function doLogin() {
+    const code = document.getElementById('lC').value.trim();
+    if (!code) return alert('Ingresa tu código');
+
+    const { data, error } = await _supabase
+        .from('perfiles')
+        .select('*')
+        .eq('id', code)
+        .eq('rol', 'repartidor')
+        .single();
+
+    if (error || !data) {
+        toast('Acceso Denegado', 'Código no registrado o rol incorrecto');
+        return;
+    }
+    if (!data.activo) {
+        toast('Cuenta Inactiva', 'Tu acceso ha sido suspendido');
+        return;
+    }
+
+    localStorage.setItem('aky_repartidor', code);
+    initApp();
+}
+
+function doLogout() {
+    localStorage.removeItem('aky_repartidor');
+    location.reload();
+}
+
+/* ── Init ── */
+async function initApp() {
+    const code = localStorage.getItem('aky_repartidor');
+    if (!code) return;
+
+    const { data: perfil } = await _supabase
+        .from('perfiles')
+        .select('*')
+        .eq('id', code)
+        .single();
+
+    if (!perfil || !perfil.activo) return doLogout();
+
+    S.user = code;
+    S.profile = perfil;
+    S.disponible = perfil.disponible !== false;
+
+    document.getElementById('pgL').style.display = 'none';
+    document.getElementById('pgA').style.display = 'block';
+
+    // Header
+    document.getElementById('r-nombre').textContent = perfil.nombre;
+    document.getElementById('r-foto').src = perfil.foto_perfil || 'https://via.placeholder.com/40';
+
+    // Perfil tab
+    document.getElementById('pNombre').textContent = perfil.nombre;
+    document.getElementById('pCodigo').textContent = `Código: ${code}`;
+    document.getElementById('pFoto').src = perfil.foto_perfil || 'https://via.placeholder.com/60';
+    document.getElementById('eFoto').value = perfil.foto_perfil || '';
+    document.getElementById('eTel').value = perfil.telefono || '';
+    document.getElementById('eDesc').value = perfil.descripcion || '';
+
+    actualizarEstadoUI();
+    cargarPedidos();
+}
+
+function actualizarEstadoUI() {
+    const btn = document.getElementById('btnDisponible');
+    const status = document.getElementById('r-status');
+    if (S.disponible) {
+        btn.innerHTML = '<i class="fas fa-toggle-on"></i> Activo';
+        btn.className = 'bP text-xs px-3 py-1';
+        status.innerHTML = '<i class="fas fa-circle text-[8px]"></i> Disponible';
+        status.className = 'text-[10px] text-green-400';
+    } else {
+        btn.innerHTML = '<i class="fas fa-toggle-off"></i> Inactivo';
+        btn.className = 'bW text-xs px-3 py-1';
+        status.innerHTML = '<i class="fas fa-circle text-[8px]"></i> No Disponible';
+        status.className = 'text-[10px] text-gray-500';
+    }
+}
+
+async function toggleDisponible() {
+    S.disponible = !S.disponible;
+    await _supabase.from('perfiles').update({ disponible: S.disponible }).eq('id', S.user);
+    actualizarEstadoUI();
+    toast('Estado actualizado', S.disponible ? 'Ahora estás disponible' : 'Ahora estás inactivo');
+}
+
+/* ── Tabs ── */
+function goT(t) {
+    document.getElementById('t-activos').style.display = t === 'activos' ? 'block' : 'none';
+    document.getElementById('t-historial').style.display = t === 'historial' ? 'block' : 'none';
+    document.getElementById('t-perfil').style.display = t === 'perfil' ? 'block' : 'none';
+    document.querySelectorAll('.ni').forEach(n => n.classList.remove('on'));
+    event.currentTarget.classList.add('on');
+    if (t === 'historial') cargarHistorial();
+}
+
+/* ── Cargar pedidos ── */
+async function cargarPedidos() {
+    const { data: activos } = await _supabase
+        .from('pedidos')
+        .select('*')
+        .eq('repartidor_id', S.user)
+        .in('estado', ['En Camino', 'Listo'])
+        .order('id', { ascending: false });
+
+    S.activos = activos || [];
+    renderActivos();
+    actualizarStats();
+}
+
+async function cargarHistorial() {
+    const { data: hist } = await _supabase
+        .from('pedidos')
+        .select('*')
+        .eq('repartidor_id', S.user)
+        .eq('estado', 'Entregado')
+        .order('id', { ascending: false })
+        .limit(50);
+
+    S.historial = hist || [];
+    renderHistorial();
+    actualizarStats();
+}
+
+async function actualizarStats() {
+    const { data: hoy } = await _supabase
+        .from('pedidos')
+        .select('*')
+        .eq('repartidor_id', S.user)
+        .eq('estado', 'Entregado')
+        .gte('created_at', new Date().toISOString().split('T')[0]);
+
+    const { count: total } = await _supabase
+        .from('pedidos')
+        .select('*', { count: 'exact', head: true })
+        .eq('repartidor_id', S.user)
+        .eq('estado', 'Entregado');
+
+    document.getElementById('statHoy').textContent = hoy ? hoy.length : 0;
+    document.getElementById('statActivos').textContent = S.activos.length;
+    document.getElementById('statTotal').textContent = total || 0;
+}
+
+/* ── Render activos ── */
+function renderActivos() {
+    const list = document.getElementById('active-list');
+    const noData = document.getElementById('no-activos');
+
+    if (S.activos.length === 0) {
+        list.innerHTML = '';
+        noData.style.display = 'block';
+        return;
+    }
+
+    noData.style.display = 'none';
+    list.innerHTML = S.activos.map(o => `
+        <div class="gc border-l-4 ${o.estado === 'Listo' ? 'border-yellow-500' : 'border-green-500'}">
+            <div class="flex justify-between items-start">
+                <div>
+                    <span class="font-bold text-lg">#${o.id}</span>
+                    <span class="badge ${o.estado === 'Listo' ? 'bWn' : 'bOk'} ml-2">${o.estado}</span>
+                </div>
+                <span class="text-sm font-bold text-green-400">Q${o.total}</span>
+            </div>
+
+            <div class="mt-3 space-y-2">
+                <div class="flex items-center gap-2 text-xs">
+                    <i class="fas fa-store text-purple-400 w-4"></i>
+                    <span class="text-gray-400">${o.comercio_nombre}</span>
+                </div>
+                <div class="flex items-center gap-2 text-xs">
+                    <i class="fas fa-user text-blue-400 w-4"></i>
+                    <span class="text-gray-400">${o.cliente_nombre}</span>
+                </div>
+                <div class="flex items-center gap-2 text-xs">
+                    <i class="fas fa-receipt text-gray-400 w-4"></i>
+                    <span class="text-gray-400">${o.detalle}</span>
+                </div>
+            </div>
+
+            <div class="flex gap-2 mt-4">
+                ${o.estado === 'Listo' ? `
+                    <button onclick="iniciarEntrega(${o.id})" class="bP text-xs flex-1">
+                        <i class="fas fa-motorcycle"></i> Iniciar Entrega
+                    </button>
+                ` : ''}
+                ${o.estado === 'En Camino' ? `
+                    <button onclick="entregarPedido(${o.id})" class="bP text-xs flex-1 bg-green-600" style="background:linear-gradient(135deg,#059669,#10B981)">
+                        <i class="fas fa-check-circle"></i> Marcar Entregado
+                    </button>
+                ` : ''}
+                <a href="https://wa.me/" target="_blank" class="bW text-xs flex-1 text-center no-underline" style="padding:10px 16px;border-radius:10px;font-weight:600">
+                    <i class="fab fa-whatsapp"></i> Contactar
+                </a>
+            </div>
+        </div>
+    `).join('');
+}
+
+/* ── Render historial ── */
+function renderHistorial() {
+    const list = document.getElementById('history-list');
+    if (S.historial.length === 0) {
+        list.innerHTML = '<p class="text-center text-gray-500 mt-10">No tienes entregas registradas aún</p>';
+        return;
+    }
+    list.innerHTML = S.historial.map(o => `
+        <div class="gc border-l-4 border-green-700 opacity-80">
+            <div class="flex justify-between items-center">
+                <div>
+                    <span class="font-bold">#${o.id}</span>
+                    <span class="badge bOk ml-2">Entregado</span>
+                </div>
+                <span class="text-sm font-bold text-green-400">Q${o.total}</span>
+            </div>
+            <div class="mt-2 text-xs text-gray-400">
+                <p><i class="fas fa-store w-4"></i> ${o.comercio_nombre}</p>
+                <p><i class="fas fa-user w-4"></i> ${o.cliente_nombre}</p>
+                <p><i class="fas fa-clock w-4"></i> ${new Date(o.created_at).toLocaleDateString('es-GT', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' })}</p>
+            </div>
+        </div>
+    `).join('');
+}
+
+/* ── Acciones ── */
+async function iniciarEntrega(id) {
+    if (!confirm('¿Iniciar entrega?')) return;
+
+    const { error } = await _supabase
+        .from('pedidos')
+        .update({ estado: 'En Camino' })
+        .eq('id', id);
+
+    if (error) toast('Error', error.message);
+    else toast('En Camino', 'Has comenzado la entrega');
+
+    cargarPedidos();
+}
+
+async function entregarPedido(id) {
+    if (!confirm('¿Confirmar entrega?')) return;
+
+    const { error } = await _supabase
+        .from('pedidos')
+        .update({ estado: 'Entregado' })
+        .eq('id', id);
+
+    if (error) toast('Error', error.message);
+    else toast('Entregado', '¡Pedido entregado con éxito!');
+
+    cargarPedidos();
+}
+
+async function guardarPerfil() {
+    const { error } = await _supabase
+        .from('perfiles')
+        .update({
+            foto_perfil: document.getElementById('eFoto').value,
+            telefono: document.getElementById('eTel').value,
+            descripcion: document.getElementById('eDesc').value
+        })
+        .eq('id', S.user);
+
+    if (error) toast('Error', error.message);
+    else {
+        toast('Éxito', 'Perfil actualizado');
+        initApp();
+    }
+}
+
+/* ── Realtime ── */
+_supabase
+    .channel('cambios-repartidor')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos' }, () => {
+        cargarPedidos();
+        cargarHistorial();
+    })
+    .subscribe();
+
+initApp();
+</script>
+</body>
+</html>
